@@ -22,3 +22,8 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+# Data and Weights
+checkpoints/
+data/
+.DS_Store

@@ -20,8 +20,14 @@ from collections.abc import Callable, Mapping
 import dataclasses
 from typing import Any, NamedTuple, Protocol
 
-from apache_beam import coders
-from grain import python as pygrain
+try:
+    from apache_beam import coders
+except ImportError:
+    coders = None  # Not needed for inference
+try:
+    from grain import python as pygrain
+except ImportError:
+    pygrain = None  # Not needed for inference
 import haiku as hk
 import jaxtyping as jtp
 
@@ -82,25 +88,28 @@ class EvaluatorBuilder(Protocol):
     """
 
 
-CODERS = {
-    'fen': coders.StrUtf8Coder(),
-    'move': coders.StrUtf8Coder(),
-    'count': coders.BigIntegerCoder(),
-    'win_prob': coders.FloatCoder(),
-}
-CODERS['state_value'] = coders.TupleCoder((
-    CODERS['fen'],
-    CODERS['win_prob'],
-))
-CODERS['action_value'] = coders.TupleCoder((
-    CODERS['fen'],
-    CODERS['move'],
-    CODERS['win_prob'],
-))
-CODERS['behavioral_cloning'] = coders.TupleCoder((
-    CODERS['fen'],
-    CODERS['move'],
-))
+if coders is not None:
+    CODERS = {
+        'fen': coders.StrUtf8Coder(),
+        'move': coders.StrUtf8Coder(),
+        'count': coders.BigIntegerCoder(),
+        'win_prob': coders.FloatCoder(),
+    }
+    CODERS['state_value'] = coders.TupleCoder((
+        CODERS['fen'],
+        CODERS['win_prob'],
+    ))
+    CODERS['action_value'] = coders.TupleCoder((
+        CODERS['fen'],
+        CODERS['move'],
+        CODERS['win_prob'],
+    ))
+    CODERS['behavioral_cloning'] = coders.TupleCoder((
+        CODERS['fen'],
+        CODERS['move'],
+    ))
+else:
+    CODERS = {}
 
 
 class BehavioralCloningData(NamedTuple):
