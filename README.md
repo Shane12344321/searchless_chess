@@ -2,6 +2,19 @@
 
 This is the backend for the Chessbridge Chrome extension. It runs a local 270M Transformer model to instantly compute chess moves using a WebSocket pipeline.
 
+## 🔬 Research: Mechanistic Interpretability
+
+> **Read the full study:** [`src/interpretability/README.md`](src/interpretability/README.md)
+
+I conducted a mechanistic interpretability study on the 270M-parameter Searchless Chess transformer to understand how it internally represents chess knowledge without search. Using **136 linear probing classifiers** across 8 chess concepts and 17 layers, the study reveals:
+
+- **Concept Emergence:** The model develops a hierarchical understanding, with simple concepts (material balance) emerging at Layer 1 and complex spatial reasoning (king safety) emerging at Layer 6.
+- **Concept Degradation:** Human-interpretable concepts peak in layers 1-3 and decline in deeper layers, suggesting the model transforms conceptual features into task-specific action-value representations.
+
+Read the [full findings and view the layer-wise visualizations here](src/interpretability/README.md).
+
+---
+
 ## How to Run This from Scratch
 
 ### 1. Start the Server
