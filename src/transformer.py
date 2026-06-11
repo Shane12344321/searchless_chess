@@ -282,3 +282,67 @@ def build_transformer_predictor(
   """Returns a transformer predictor."""
   model = hk.transform(functools.partial(transformer_decoder, config=config))
   return constants.Predictor(initial_params=model.init, predict=model.apply)
+
+
+def transformer_decoder_with_activations(
+    targets: jax.Array,
+    config: TransformerConfig,
+) -> tuple[jax.Array, list[jax.Array]]:
+  """Returns the transformer output AND per-layer hidden activations.
+
+  Identical to transformer_decoder() but also returns the hidden state `h`
+  captured after every transformer block. Because it uses the exact same Haiku
+  module calls in the same order, pre-trained checkpoints load into this
+  function without any modification.
+
+  Args:
+    targets: The integer target values, shape [B, T].
+    config: The config to use for the transformer.
+
+  Returns:
+    A tuple of:
+      - log_probs: The final log-softmax output, shape [B, T, V].
+      - layer_activations: A list of length (num_layers + 1).
+          Index 0  -> embedding output (before any transformer block).
+          Index i  -> hidden state after transformer block i, shape [B, T, D].
+  """
+  # Right shift the targets to get the inputs.
+  inputs = shift_right(targets)
+
+  # Embed the inputs and add positional encodings.
+  embeddings = embed_sequences(inputs, config)
+
+  h = embeddings
+  # Index 0: the raw embedding (Layer 0).
+  layer_activations: list[jax.Array] = [h]
+
+  for _ in range(config.num_layers):
+    attention_input = layer_norm(h)
+    attention = _attention_block(attention_input, config)
+    h += attention
+
+    mlp_input = layer_norm(h)
+    mlp_output = _mlp_block(mlp_input, config)
+    h += mlp_output
+
+    # Capture the hidden state after this full transformer block.
+    layer_activations.append(h)
+
+  if config.apply_post_ln:
+    h = layer_norm(h)
+  logits = hk.Linear(config.output_size)(h)
+  return jnn.log_softmax(logits, axis=-1), layer_activations
+
+
+def build_activation_extractor(
+    config: TransformerConfig,
+) -> constants.Predictor:
+  """Returns a predictor that also outputs per-layer hidden activations.
+
+  Use this instead of build_transformer_predictor() when you need to inspect
+  what each layer of the transformer has learned (e.g. for probing studies).
+  """
+  model = hk.transform(
+      functools.partial(transformer_decoder_with_activations, config=config)
+  )
+  return constants.Predictor(initial_params=model.init, predict=model.apply)
